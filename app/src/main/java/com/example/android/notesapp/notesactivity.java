@@ -9,20 +9,26 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 
@@ -70,16 +76,69 @@ public class notesactivity extends AppCompatActivity {
             @Override
             protected void onBindViewHolder(@NonNull NoteViewHolder noteViewHolder, int i, @NonNull firebasemodel firebasemodel) {
 
+                ImageView popupbutton=noteViewHolder.itemView.findViewById(R.id.menuupopbutton);
+
                 int colourcode = getRandomColor();
                 noteViewHolder.mnote.setBackgroundColor(noteViewHolder.itemView.getResources().getColor(colourcode, null));
                 noteViewHolder.notetitle.setText(firebasemodel.getTitle());
                 noteViewHolder.notecontent.setText(firebasemodel.getContent());
+
+                String docId = noteAdapter.getSnapshots().getSnapshot(i).getId();
+
                 noteViewHolder.itemView.setOnClickListener(new View.OnClickListener(){
                     @Override
                     public void onClick(View v) {
                         // we have to open note detail activity
-                        Toast.makeText(getApplicationContext(), "This is Clicked", Toast.LENGTH_LONG).show();
+                        Intent intent = new Intent(v.getContext(),notedetails.class);
+                        intent.putExtra("title", firebasemodel.getTitle());
+                        intent.putExtra("content",firebasemodel.getContent());
+                        intent.putExtra("noteId",docId);
 
+                        v.getContext().startActivity(intent);
+                        //Toast.makeText(getApplicationContext(), "This is Clicked", Toast.LENGTH_LONG).show();
+
+                    }
+                });
+
+                popupbutton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        PopupMenu popupMenu = new PopupMenu(v.getContext(),v);
+                        popupMenu.setGravity(Gravity.END);
+                        popupMenu.getMenu().add("Edit").setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+                            @Override
+                            public boolean onMenuItemClick(MenuItem item) {
+                                Intent intent = new Intent(v.getContext(),editnoteactivity.class);
+                                intent.putExtra("title", firebasemodel.getTitle());
+                                intent.putExtra("content",firebasemodel.getContent());
+                                intent.putExtra("noteId",docId);
+                                v.getContext().startActivity(intent);
+                                return false;
+                            }
+                        });
+
+                        popupMenu.getMenu().add("Delete").setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+                            @Override
+                            public boolean onMenuItemClick(MenuItem item) {
+                                // Toast.makeText(getApplicationContext(), "This note is deleted", Toast.LENGTH_LONG).show();
+                                DocumentReference documentReference = firebaseFirestore.collection("notes").document(firebaseUser.getUid()).collection("myNotes").document(docId);
+                                documentReference.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                                    @Override
+                                    public void onSuccess(Void unused) {
+                                         Toast.makeText(getApplicationContext(), "This note is deleted", Toast.LENGTH_LONG).show();
+
+                                    }
+                                }).addOnFailureListener(new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                         Toast.makeText(getApplicationContext(), "Failed to delete", Toast.LENGTH_LONG).show();
+
+                                    }
+                                });
+                                return false;
+                            }
+                        });
+                        popupMenu.show();
                     }
                 });
             }
